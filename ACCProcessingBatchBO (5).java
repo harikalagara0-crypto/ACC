@@ -12005,8 +12005,14 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 						enterACCSuppFEMDMTODTO.getBaseMissionApplication().getTargetModel().equalsIgnoreCase(previousEventPartDetails.getM_strTgtModelDevCodeMission())&&
 						enterACCSuppFEMDMTODTO.getBaseMissionApplication().getType().equalsIgnoreCase(previousEventPartDetails.getM_strMTCTypeMission())&&
 						enterACCSuppFEMDMTODTO.getBaseDifferentialApplication().getTargetModel().equalsIgnoreCase(previousEventPartDetails.getM_strTgtModelDevCodeDifferential())&&
-						enterACCSuppFEMDMTODTO.getBaseDifferentialApplication().getType().equalsIgnoreCase(previousEventPartDetails.getM_strMTCTypeDifferential())&&
-						previousEventPartDetails.getM_strModelCatCode().trim().equalsIgnoreCase(currentEventPartDetails.getM_strModelCatCode().trim())){
+						enterACCSuppFEMDMTODTO.getBaseDifferentialApplication().getType().equalsIgnoreCase(previousEventPartDetails.getM_strMTCTypeDifferential())
+						//FEMD FIX: Do NOT require MODEL_CAT_CODE equality here. When the full base/current F-E-M-D MTO combination
+						//resolves to the same FEMD row, the base and current records refer to the SAME physical application even if their
+						//MODEL_CAT_CODE differs. CSS load logic converts Diff/Transmission types to Engine codes, which causes the same
+						//application to appear under a different MODEL_CAT_CODE between the base and current events (e.g. base E->6JZA A07,
+						//current M->6ZLA AA1, both mapping to 3BMA AC5 = 6ZMA DA1). Gating on MODEL_CAT_CODE equality here previously
+						//prevented these equivalent records from matching, producing false Part Dropped/Added offsetting ACCs.
+						){
 					recordFound=true;
 					break;
 				}
@@ -12014,13 +12020,25 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 		
 		if(recordFound){
 		
+			//FEMD FIX: We are inside this block only because the full base/current F-E-M-D MTO combination resolved to the SAME
+			//FEMD row (recordFound==true), which means the base and current part records represent the same physical application.
+			//The CSS load logic converts Diff/Transmission types to Engine codes, so the same application can appear under a
+			//different MODEL_CAT_CODE between the base and current events. We therefore treat MODEL_CAT_CODE as matching whenever
+			//the records are FEMD-equivalent, so that a MODEL_CAT_CODE difference alone no longer forces a false Part Dropped/Added
+			//pair. All other physical part attributes (proc sect, supplier, plant, part section, share rate, qty, part no, color)
+			//must still match exactly per the individual match type.
+			//recordFound==true here already proves FEMD equivalence (same physical application), so MODEL_CAT_CODE is intentionally
+			//NOT used as a discriminator in the match branches below. It is a derived attribute that the CSS load corrupts by
+			//converting Diff/Transmission types to Engine codes, so it can legitimately differ for the same application.
+			boolean modelCatCodeMatches = true;
+		
 			if("EXACT_MATCH".equals(typeOfMatch)){
 				recordMatched = 
 					currentEventPartDetails.getM_strProcSectCode().equalsIgnoreCase(previousEventPartDetails.getM_strProcSectCode())
 					&& currentEventPartDetails.getM_strSupplierNumber().equalsIgnoreCase(previousEventPartDetails.getM_strSupplierNumber())
 					&& currentEventPartDetails.getM_strPlantLocCode().equalsIgnoreCase(previousEventPartDetails.getM_strPlantLocCode())
 					&& currentEventPartDetails.getM_strPartSectionCode().equalsIgnoreCase(previousEventPartDetails.getM_strPartSectionCode())
-					&& currentEventPartDetails.getM_strModelCatCode().equals(previousEventPartDetails.getM_strModelCatCode())
+					&& modelCatCodeMatches
 					&& currentEventPartDetails.getM_decShareRatePercent().equals(previousEventPartDetails.getM_decShareRatePercent())
 					&& currentEventPartDetails.getM_intPartQty().compareTo(previousEventPartDetails.getM_intPartQty()) == 0
 					&& currentEventPartDetails.getM_strPartNumber().equalsIgnoreCase(previousEventPartDetails.getM_strPartNumber())
@@ -12032,7 +12050,7 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 					&& !(currentEventPartDetails.getM_strSupplierNumber().equalsIgnoreCase(previousEventPartDetails.getM_strSupplierNumber()))
 					&& currentEventPartDetails.getM_strPlantLocCode().equalsIgnoreCase(previousEventPartDetails.getM_strPlantLocCode())
 					&& currentEventPartDetails.getM_strPartSectionCode().equalsIgnoreCase(previousEventPartDetails.getM_strPartSectionCode())
-					&& currentEventPartDetails.getM_strModelCatCode().equals(previousEventPartDetails.getM_strModelCatCode())
+					&& modelCatCodeMatches
 					&& currentEventPartDetails.getM_decShareRatePercent().equals(previousEventPartDetails.getM_decShareRatePercent())
 					&& currentEventPartDetails.getM_intPartQty().compareTo(previousEventPartDetails.getM_intPartQty()) == 0
 					&& currentEventPartDetails.getM_strPartNumber().equalsIgnoreCase(previousEventPartDetails.getM_strPartNumber())
@@ -12044,7 +12062,7 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 					&& currentEventPartDetails.getM_strSupplierNumber().equalsIgnoreCase(previousEventPartDetails.getM_strSupplierNumber())
 					&& currentEventPartDetails.getM_strPlantLocCode().equalsIgnoreCase(previousEventPartDetails.getM_strPlantLocCode())
 					&& currentEventPartDetails.getM_strPartSectionCode().equalsIgnoreCase(previousEventPartDetails.getM_strPartSectionCode())
-					&& currentEventPartDetails.getM_strModelCatCode().equals(previousEventPartDetails.getM_strModelCatCode())
+					&& modelCatCodeMatches
 					&& currentEventPartDetails.getM_decShareRatePercent().equals(previousEventPartDetails.getM_decShareRatePercent())
 					&& currentEventPartDetails.getM_intPartQty().compareTo(previousEventPartDetails.getM_intPartQty()) == 0
 					&& currentEventPartDetails.getM_strPartNumber().equalsIgnoreCase(previousEventPartDetails.getM_strPartNumber())
@@ -12056,7 +12074,7 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 					&& currentEventPartDetails.getM_strSupplierNumber().equalsIgnoreCase(previousEventPartDetails.getM_strSupplierNumber())
 					&& currentEventPartDetails.getM_strPlantLocCode().equalsIgnoreCase(previousEventPartDetails.getM_strPlantLocCode())
 					&& currentEventPartDetails.getM_strPartSectionCode().equalsIgnoreCase(previousEventPartDetails.getM_strPartSectionCode())
-					&& currentEventPartDetails.getM_strModelCatCode().equals(previousEventPartDetails.getM_strModelCatCode())
+					&& modelCatCodeMatches
 					&& !(currentEventPartDetails.getM_decShareRatePercent().equals(previousEventPartDetails.getM_decShareRatePercent()))
 					&& currentEventPartDetails.getM_intPartQty().compareTo(previousEventPartDetails.getM_intPartQty()) == 0
 					&& currentEventPartDetails.getM_strPartNumber().equalsIgnoreCase(previousEventPartDetails.getM_strPartNumber())
@@ -12068,7 +12086,7 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 					&& currentEventPartDetails.getM_strSupplierNumber().equalsIgnoreCase(previousEventPartDetails.getM_strSupplierNumber())
 					&& currentEventPartDetails.getM_strPlantLocCode().equalsIgnoreCase(previousEventPartDetails.getM_strPlantLocCode())
 					&& currentEventPartDetails.getM_strPartSectionCode().equalsIgnoreCase(previousEventPartDetails.getM_strPartSectionCode())
-					&& currentEventPartDetails.getM_strModelCatCode().equals(previousEventPartDetails.getM_strModelCatCode())
+					&& modelCatCodeMatches
 					&& currentEventPartDetails.getM_decShareRatePercent().equals(previousEventPartDetails.getM_decShareRatePercent())
 					&& currentEventPartDetails.getM_intPartQty().compareTo(previousEventPartDetails.getM_intPartQty()) != 0
 					&& currentEventPartDetails.getM_strPartNumber().equalsIgnoreCase(previousEventPartDetails.getM_strPartNumber())
@@ -12080,7 +12098,7 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 					&& currentEventPartDetails.getM_strSupplierNumber().equalsIgnoreCase(previousEventPartDetails.getM_strSupplierNumber())
 					&& currentEventPartDetails.getM_strPlantLocCode().equalsIgnoreCase(previousEventPartDetails.getM_strPlantLocCode())
 					&& !(currentEventPartDetails.getM_strPartSectionCode().equalsIgnoreCase(previousEventPartDetails.getM_strPartSectionCode()))
-					&& currentEventPartDetails.getM_strModelCatCode().equals(previousEventPartDetails.getM_strModelCatCode())
+					&& modelCatCodeMatches
 					&& currentEventPartDetails.getM_decShareRatePercent().equals(previousEventPartDetails.getM_decShareRatePercent())
 					&& currentEventPartDetails.getM_intPartQty().compareTo(previousEventPartDetails.getM_intPartQty()) == 0
 					&& currentEventPartDetails.getM_strPartNumber().equalsIgnoreCase(previousEventPartDetails.getM_strPartNumber())
@@ -12092,7 +12110,7 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 					&& currentEventPartDetails.getM_strSupplierNumber().equalsIgnoreCase(previousEventPartDetails.getM_strSupplierNumber())
 					&& currentEventPartDetails.getM_strPlantLocCode().equalsIgnoreCase(previousEventPartDetails.getM_strPlantLocCode())
 					&& currentEventPartDetails.getM_strPartSectionCode().equalsIgnoreCase(previousEventPartDetails.getM_strPartSectionCode())
-					&& currentEventPartDetails.getM_strModelCatCode().equals(previousEventPartDetails.getM_strModelCatCode())
+					&& modelCatCodeMatches
 					&& currentEventPartDetails.getM_decShareRatePercent().equals(previousEventPartDetails.getM_decShareRatePercent())
 					&& currentEventPartDetails.getM_intPartQty().compareTo(previousEventPartDetails.getM_intPartQty()) == 0
 					&& currentEventPartDetails.getM_strPartNumber().equalsIgnoreCase(previousEventPartDetails.getM_strPartNumber())
@@ -12161,8 +12179,14 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 								enterACCSuppFEMDMTODTO.getBaseMissionApplication().getTargetModel().equalsIgnoreCase(previousEventPartDetailsObj.getM_strTgtModelDevCodeMission())&&
 								enterACCSuppFEMDMTODTO.getBaseMissionApplication().getType().equalsIgnoreCase(previousEventPartDetailsObj.getM_strMTCTypeMission())&&
 								enterACCSuppFEMDMTODTO.getBaseDifferentialApplication().getTargetModel().equalsIgnoreCase(previousEventPartDetailsObj.getM_strTgtModelDevCodeDifferential())&&
-								enterACCSuppFEMDMTODTO.getBaseDifferentialApplication().getType().equalsIgnoreCase(previousEventPartDetailsObj.getM_strMTCTypeDifferential())&&
-								previousEventPartDetailsObj.getM_strModelCatCode().trim().equalsIgnoreCase(currentEventPartDetails.getM_strModelCatCode().trim())){
+								enterACCSuppFEMDMTODTO.getBaseDifferentialApplication().getType().equalsIgnoreCase(previousEventPartDetailsObj.getM_strMTCTypeDifferential())
+								//FEMD FIX: Do NOT require MODEL_CAT_CODE equality. When the full base/current F-E-M-D MTO combination resolves
+								//to the same FEMD row, the base and current records refer to the SAME physical application even if their
+								//MODEL_CAT_CODE differs (CSS load converts Diff/Transmission types to Engine codes, so the same application
+								//appears under a different MODEL_CAT_CODE between the base and current events). Gating on MODEL_CAT_CODE
+								//equality here previously excluded these equivalent records from the multiple-indicator-change hierarchy
+								//evaluation, producing false Part Dropped/Added offsetting ACCs.
+								){
 							prevPartIndexInList.add(prevPartIndex);
 							break;
 						}
@@ -12216,18 +12240,21 @@ public class ACCProcessingBatchBO extends EmailNotificationBO {
 				previousEventPartDetailsIndexObj.setM_intIndexForHierarchy(index);
 				hmapHierarchyPartObj.put(hierarchyChanges, previousEventPartDetailsIndexObj);
 			}
-			//E2A: If hierarchyChanges is empty, only Proc/Design Section differed - mark as matched and remove
-			else if(enterACCApplicationsSuppMTOSummaryDVO.getM_strCurrentEvent().contains("E2A")){
-				boolean hasProcSectDiff = previousEventPartDetailsIndexObj.getM_strProcSectCode()!=null && currentEventPartDetails.getM_strProcSectCode()!=null &&
-						!previousEventPartDetailsIndexObj.getM_strProcSectCode().equalsIgnoreCase(currentEventPartDetails.getM_strProcSectCode());
-				boolean hasDesignSectDiff = previousEventPartDetailsIndexObj.getM_strPartSectionCode()!=null && currentEventPartDetails.getM_strPartSectionCode()!=null &&
-						!previousEventPartDetailsIndexObj.getM_strPartSectionCode().equalsIgnoreCase(currentEventPartDetails.getM_strPartSectionCode());
-				if(hasProcSectDiff || hasDesignSectDiff){
-					previousEventPartDetailsIndexObj.setM_bolMatchDone(true);
-					m_lEnterACCPreviousEventPartDetailsDTO.get(index).setM_bolMatchDone(true);
-					currentEventPartDetails.setM_bolMatchDone(true);
-					break;
-				}
+			//FEMD FIX: hierarchyChanges is empty, so this FEMD-equivalent candidate has NO tracked change indicator (proc group,
+			//supplier, qty, share rate, design section, part color) different from the current record. Two situations reach here:
+			//  (a) The records are identical on every tracked attribute and differ only by MODEL_CAT_CODE (caused by the CSS load
+			//      converting Diff/Transmission types to Engine codes). This is the same physical application and must be matched
+			//      so it is not later flagged as a false Part Dropped/Added pair.
+			//  (b) An E2A event where only Proc/Design Section differed (those indicators are excluded above for E2A), which the
+			//      prior E2A-specific branch already treated as a match.
+			//Both situations are the same part, so we mark the pair matched. The break stops scanning further candidates because a
+			//zero-change candidate is an exact match and takes precedence over any remaining multi-indicator-change candidate; any
+			//additional zero-change previous record is identical and interchangeable, and is reconciled in a later pass.
+			else {
+				previousEventPartDetailsIndexObj.setM_bolMatchDone(true);
+				m_lEnterACCPreviousEventPartDetailsDTO.get(index).setM_bolMatchDone(true);
+				currentEventPartDetails.setM_bolMatchDone(true);
+				break;
 			}
 			
 			
