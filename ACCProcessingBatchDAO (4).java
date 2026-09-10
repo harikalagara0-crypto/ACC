@@ -202,14 +202,24 @@ public class ACCProcessingBatchDAO extends DAOHelper implements ACCProcessingBat
 			conditionBasedOnCurrency="<>";
 		}
 		
+		//E2A ONLY: When the base (QA) event has no FCEFM1 frame row, getBaseFrameApplication() is null and the original gate below
+		//would skip fetching ALL base part data for this combination, so the "Part Dropped" parts are never evaluated and no ACC is
+		//generated ("Unable to look in QA event"). For E2A events only, fall back to the current frame application so the base part
+		//fetch can still run. For every non-E2A event the original behavior is unchanged (base frame must be non-null).
+		boolean isE2AEvent = enterACCApplicationsSuppMTOSummaryDVO.getM_strCurrentEvent()!=null
+				&& enterACCApplicationsSuppMTOSummaryDVO.getM_strCurrentEvent().contains("E2A");
 		//for loop responsible for formation of the inner query to pass the MTO selected on the screen as where clause.
 		for(EnterACCSuppFEMDMTODTO enterACCSuppFEMDMTODTO : enterACCApplicationsSuppMTOSummaryDVO.getM_lEnterACCSuppFEMDMTODTOList()){
-			if(enterACCSuppFEMDMTODTO.getBaseFrameApplication()!=null){
+			EnterACCApplicationsDVO baseFrameForQuery = enterACCSuppFEMDMTODTO.getBaseFrameApplication();
+			if(baseFrameForQuery==null && isE2AEvent){
+				baseFrameForQuery = enterACCSuppFEMDMTODTO.getCurrentFrameApplication();
+			}
+			if(baseFrameForQuery!=null){
 				innerQuerySB = new StringBuilder();
 				innerQuerySB.append(" SELECT " +
-						" '"+enterACCSuppFEMDMTODTO.getBaseFrameApplication().getTargetModel() +"'" +
-						",'"+enterACCSuppFEMDMTODTO.getBaseFrameApplication().getType()+"'" +
-						",'"+(enterACCSuppFEMDMTODTO.getBaseFrameApplication().getOption()!=null ? enterACCSuppFEMDMTODTO.getBaseFrameApplication().getOption() : "")+"'" +
+						" '"+baseFrameForQuery.getTargetModel() +"'" +
+						",'"+baseFrameForQuery.getType()+"'" +
+						",'"+(baseFrameForQuery.getOption()!=null ? baseFrameForQuery.getOption() : "")+"'" +
 						" FROM SYSIBM.SYSDUMMY1 ");
 				
 				querySB = new StringBuilder((ENTER_ACC_SUPP_MTO_SUMMARY_EVENT_PART_LEVEL_DETAILS.replace("@FrameMTOs@", innerQuerySB)).replace("@MCCCodes@", strMCCCodes).replace("--CONDITION_BASED_ON_CURRENCY--", conditionBasedOnCurrency));
@@ -331,15 +341,25 @@ public class ACCProcessingBatchDAO extends DAOHelper implements ACCProcessingBat
 				conditionBasedOnCurrency="<>";
 			}
     		
+    		//E2A ONLY: When the current event has no FCEFM1 frame row, getCurrentFrameApplication() is null and the original gate
+    		//below would skip fetching ALL current part data for this combination, so "Part Added" parts are never evaluated and no
+    		//ACC is generated. For E2A events only, fall back to the base frame application so the current part fetch can still run.
+    		//For every non-E2A event the original behavior is unchanged (current frame must be non-null).
+    		boolean isE2AEvent = enterACCApplicationsSuppMTOSummaryDVO.getM_strCurrentEvent()!=null
+    				&& enterACCApplicationsSuppMTOSummaryDVO.getM_strCurrentEvent().contains("E2A");
     		//for loop responsible for formation of the inner query to pass the MTO selected on the screen as where clause.
     		for(EnterACCSuppFEMDMTODTO enterACCSuppFEMDMTODTO : enterACCApplicationsSuppMTOSummaryDVO.getM_lEnterACCSuppFEMDMTODTOList()){
-	    		if(enterACCSuppFEMDMTODTO.getCurrentFrameApplication()!=null){
+	    		EnterACCApplicationsDVO currentFrameForQuery = enterACCSuppFEMDMTODTO.getCurrentFrameApplication();
+	    		if(currentFrameForQuery==null && isE2AEvent){
+	    			currentFrameForQuery = enterACCSuppFEMDMTODTO.getBaseFrameApplication();
+	    		}
+	    		if(currentFrameForQuery!=null){
 	    				
 	    			innerQuerySB = new StringBuilder();
 	    			innerQuerySB.append(" SELECT " +
-	    					" '"+enterACCSuppFEMDMTODTO.getCurrentFrameApplication().getTargetModel() +"'" +
-	    					",'"+enterACCSuppFEMDMTODTO.getCurrentFrameApplication().getType()+"'" +
-	    					",'"+(enterACCSuppFEMDMTODTO.getCurrentFrameApplication().getOption()!=null ? enterACCSuppFEMDMTODTO.getCurrentFrameApplication().getOption() : "")+"'" +
+	    					" '"+currentFrameForQuery.getTargetModel() +"'" +
+	    					",'"+currentFrameForQuery.getType()+"'" +
+	    					",'"+(currentFrameForQuery.getOption()!=null ? currentFrameForQuery.getOption() : "")+"'" +
 	    					" FROM SYSIBM.SYSDUMMY1 ");
 	    			
 	    			querySB = new StringBuilder((ENTER_ACC_SUPP_MTO_SUMMARY_EVENT_PART_LEVEL_DETAILS.replace("@FrameMTOs@", innerQuerySB)).replace("@MCCCodes@", "'"+strMCCCodes+"'").replace("--CONDITION_BASED_ON_CURRENCY--", conditionBasedOnCurrency));
